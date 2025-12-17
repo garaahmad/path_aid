@@ -429,6 +429,7 @@ class _ManageFacilitiesState extends State<ManageFacilities> {
             animationType: AnimationType.slideInFromTop,
             toastDuration: const Duration(seconds: 1),
             toastAlignment: Alignment.topCenter,
+            displaySideBar: false,
           ).show(context);
         }
       }
@@ -517,9 +518,7 @@ class _ManageFacilitiesState extends State<ManageFacilities> {
                     _isLoadingCities
                         ? Center(child: CircularProgressIndicator())
                         : DropdownButtonFormField<String>(
-                            key: ValueKey(
-                              _selectedArea,
-                            ), 
+                            key: ValueKey(_selectedArea),
                             value: _selectedCity,
                             decoration: InputDecoration(
                               labelText: 'المدينة *',
@@ -615,6 +614,7 @@ class _ManageFacilitiesState extends State<ManageFacilities> {
         animationType: AnimationType.slideInFromTop,
         toastDuration: const Duration(seconds: 1),
         toastAlignment: Alignment.topCenter,
+        displaySideBar: false,
       ).show(context);
     }
   }
@@ -720,6 +720,7 @@ class _ManageFacilitiesState extends State<ManageFacilities> {
                     animationType: AnimationType.slideInFromTop,
                     toastDuration: const Duration(seconds: 1),
                     toastAlignment: Alignment.topCenter,
+                    displaySideBar: false,
                   ).show(mainContext);
                 }
               },

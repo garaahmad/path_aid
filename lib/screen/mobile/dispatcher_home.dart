@@ -48,7 +48,9 @@ class _DispatcherHomeState extends State<DispatcherHome> {
     try {
       final requests = await TransportRequestService.getAllTransportRequests();
       final facilities = await FacilityService.getAllFacilities();
-      final facilitiesMap = {for (var f in facilities) f['id']: f['name']};
+      final facilitiesMap = {
+        for (var f in facilities) f['id'].toString(): f['name'],
+      };
 
       int pending = 0;
       int inProgress = 0;
@@ -56,34 +58,31 @@ class _DispatcherHomeState extends State<DispatcherHome> {
 
       final mappedRequests = requests.map((req) {
         final status = req['status'] ?? 'PENDING';
-        if (status == 'PENDING')
+        if (status == 'PENDING') {
           pending++;
-        else if (status == 'IN_PROGRESS' ||
-            status == 'ON_ROUTE' ||
-            status == 'ASSIGNED')
+        } else if (status == 'ACCEPTED' ||
+            status == 'ON_THE_WAY' ||
+            status == 'ARRIVED_AT_FACILITY' ||
+            status == 'TRANSFERRED_TO_DESTINATION') {
           inProgress++;
-        else if (status == 'COMPLETED')
+        } else if (status == 'COMPLETED') {
           completed++;
+        }
 
         return {
           ...req,
           'status': status,
           'fromFacilityName':
-              facilitiesMap[req['fromFacilityId']] ??
+              facilitiesMap[req['fromFacilityId'].toString()] ??
               'منشأة ${req['fromFacilityId']}',
           'toFacilityName':
-              facilitiesMap[req['toFacilityId']] ??
+              facilitiesMap[req['toFacilityId'].toString()] ??
               'منشأة ${req['toFacilityId']}',
         };
       }).toList();
 
       final recent = mappedRequests
-          .where(
-            (r) =>
-                r['status'] != 'COMPLETED' &&
-                r['status'] != 'CANCELLED' &&
-                r['status'] != 'REJECTED',
-          )
+          .where((r) => r['status'] == 'PENDING')
           .toList()
           .reversed
           .take(10)
@@ -227,7 +226,7 @@ class _DispatcherHomeState extends State<DispatcherHome> {
       onRefresh: _loadDashboardData,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 100), 
+        padding: const EdgeInsets.only(bottom: 100),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -306,7 +305,10 @@ class _DispatcherHomeState extends State<DispatcherHome> {
                   ),
                   TextButton(
                     onPressed: () {
-                      Navigator.pushNamed(context, '/dispatcher/pending');
+                      Navigator.pushNamed(
+                        context,
+                        '/dispatcher/pending',
+                      ).then((_) => _loadDashboardData());
                     },
                     child: const Text('عرض الكل'),
                     style: TextButton.styleFrom(
@@ -420,6 +422,10 @@ class _DispatcherHomeState extends State<DispatcherHome> {
       statusText = 'قيد الانتظار';
       statusColor = Colors.orange[700]!;
       statusBg = Colors.orange[50]!;
+    } else if (status == 'ACCEPTED') {
+      statusText = 'تم تعيين مركبه';
+      statusColor = const Color(0xFF135bec);
+      statusBg = const Color(0xFF135bec).withOpacity(0.1);
     } else if (status == 'COMPLETED') {
       statusText = 'مكتمل';
       statusColor = Colors.green[700]!;
@@ -517,7 +523,7 @@ class _DispatcherHomeState extends State<DispatcherHome> {
                       context,
                       '/request_details',
                       arguments: request,
-                    );
+                    ).then((_) => _loadDashboardData());
                   },
                   icon: const Icon(Icons.local_shipping_outlined, size: 18),
                   label: const Text('تفاصيل'),
@@ -811,6 +817,7 @@ class _DispatcherHomeState extends State<DispatcherHome> {
         animationType: AnimationType.slideInFromTop,
         toastDuration: const Duration(seconds: 1),
         toastAlignment: Alignment.topCenter,
+        displaySideBar: false,
       ).show(context);
       _fetchVehicles();
     } catch (e) {
@@ -819,6 +826,7 @@ class _DispatcherHomeState extends State<DispatcherHome> {
         animationType: AnimationType.slideInFromTop,
         toastDuration: const Duration(seconds: 1),
         toastAlignment: Alignment.topCenter,
+        displaySideBar: false,
       ).show(context);
     }
   }
@@ -833,6 +841,7 @@ class _DispatcherHomeState extends State<DispatcherHome> {
         animationType: AnimationType.slideInFromTop,
         toastDuration: const Duration(seconds: 1),
         toastAlignment: Alignment.topCenter,
+        displaySideBar: false,
       ).show(context);
     }
   }

@@ -182,7 +182,7 @@ class _LoginmobileState extends State<Loginmobile> {
                 child: ElevatedButton(
                   onPressed: _login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E60F7), 
+                    backgroundColor: const Color(0xFF1E60F7),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -212,8 +212,7 @@ class _LoginmobileState extends State<Loginmobile> {
                       style: TextStyle(color: Colors.grey, fontSize: 12),
                     ),
                     TextButton(
-                      onPressed: () {
-                      },
+                      onPressed: () {},
                       child: const Text(
                         "اتصل بالإدارة",
                         style: TextStyle(
@@ -259,6 +258,7 @@ class _LoginmobileState extends State<Loginmobile> {
         width: 300,
         height: 50,
         dismissable: true,
+        displaySideBar: false,
       ).show(context);
     }
   }

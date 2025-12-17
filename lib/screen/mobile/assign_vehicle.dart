@@ -39,6 +39,7 @@ class _AssignVehicleState extends State<AssignVehicle> {
           description: Text('فشل تحميل الطلبات: $e'),
           animationType: AnimationType.slideInFromTop,
           toastDuration: const Duration(seconds: 1),
+          displaySideBar: false,
           toastAlignment: Alignment.topCenter,
         ).show(context);
       }
@@ -278,6 +279,7 @@ class _AssignmentDialogState extends State<AssignmentDialog> {
           animationType: AnimationType.slideInFromTop,
           toastDuration: const Duration(seconds: 1),
           toastAlignment: Alignment.topCenter,
+          displaySideBar: false,
         ).show(context);
       }
     }
@@ -302,6 +304,7 @@ class _AssignmentDialogState extends State<AssignmentDialog> {
           animationType: AnimationType.slideInFromTop,
           toastDuration: const Duration(seconds: 1),
           toastAlignment: Alignment.topCenter,
+          displaySideBar: false,
         ).show(context);
       }
     } catch (e) {
@@ -312,6 +315,7 @@ class _AssignmentDialogState extends State<AssignmentDialog> {
           animationType: AnimationType.slideInFromTop,
           toastDuration: const Duration(seconds: 1),
           toastAlignment: Alignment.topCenter,
+          displaySideBar: false,
         ).show(context);
       }
     }

@@ -28,6 +28,9 @@ class _PendingRequestsState extends State<PendingRequests> {
     try {
       final facilities = await FacilityService.getAllFacilities();
       _facilitiesMap = {for (var f in facilities) f['id']: f['name']};
+      final facilitiesMapStringKeys = {
+        for (var f in facilities) f['id'].toString(): f['name'],
+      };
 
       final requests = await TransportRequestService.getAllTransportRequests();
 
@@ -42,9 +45,11 @@ class _PendingRequestsState extends State<PendingRequests> {
           ...req,
           'fromFacility':
               _facilitiesMap[req['fromFacilityId']] ??
+              facilitiesMapStringKeys[req['fromFacilityId'].toString()] ??
               'منشأة #${req['fromFacilityId']}',
           'toFacility':
               _facilitiesMap[req['toFacilityId']] ??
+              facilitiesMapStringKeys[req['toFacilityId'].toString()] ??
               'منشأة #${req['toFacilityId']}',
           'scheduledTransferTime': formattedTime,
           'requestedBy': req['requestedBy'] ?? 'النظام',
@@ -707,8 +712,7 @@ class _PendingRequestsState extends State<PendingRequests> {
                   SizedBox(height: 12),
 
                   if (selectedVehicle != null)
-                    _buildSelectedVehicleCard(selectedVehicle!, () {
-                    })
+                    _buildSelectedVehicleCard(selectedVehicle!, () {})
                   else
                     FutureBuilder<List<Map<String, dynamic>>>(
                       future: _vehiclesFuture,
@@ -800,7 +804,7 @@ class _PendingRequestsState extends State<PendingRequests> {
           child: Icon(Icons.person, color: Colors.white, size: 20),
         ),
         title: Text(
-          '${driver['fName']} ${driver['lName'] ?? ''}', 
+          '${driver['fName']} ${driver['lName'] ?? ''}',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Column(
@@ -939,20 +943,29 @@ class _PendingRequestsState extends State<PendingRequests> {
       Navigator.pop(context);
 
       setState(() {
-        pendingRequests.removeWhere(
-          (req) => int.parse(req['id'].toString()) == requestId,
+        final index = pendingRequests.indexWhere(
+          (req) => req['id'].toString() == requestId.toString(),
         );
+        if (index != -1) {
+          pendingRequests[index]['status'] = 'ACCEPTED';
+          pendingRequests[index]['assignedDriverId'] = driverId;
+          pendingRequests[index]['assignedVehicleId'] = vehicleId;
+        }
       });
 
       MotionToast.success(
         description: Text(
           'تم تعيين السائق ${driver['fName']} والمركبة ${vehicle['code']} للطلب بنجاح',
         ),
+        displaySideBar: false,
       ).show(context);
     } catch (e) {
       Navigator.pop(context);
 
-      MotionToast.error(description: Text(e.toString())).show(context);
+      MotionToast.error(
+        description: Text(e.toString()),
+        displaySideBar: false,
+      ).show(context);
     }
   }
 

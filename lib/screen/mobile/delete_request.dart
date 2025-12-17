@@ -136,11 +136,27 @@ class _DeleteRequestState extends State<DeleteRequest> {
                     ),
                     title: Text(request['patientName'] ?? 'غير معروف'),
                     subtitle: Text(
-                      'العمر: ${request['patientAge'] ?? 0} - ${request['priority'] ?? "غير محدد"}',
+                      'العمر: ${request['patientAge'] ?? 0} - ${request['priority'] ?? "غير محدد"}\nالحالة: ${request['status']}',
                     ),
-                    trailing: IconButton(
-                      icon: Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _deleteRequest(request['id'], index),
+                    trailing: Opacity(
+                      opacity: request['status'] == 'PENDING' ? 1.0 : 0.3,
+                      child: IconButton(
+                        icon: Icon(Icons.delete, color: Colors.red),
+                        onPressed: () {
+                          if (request['status'] != 'PENDING') {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'لا يمكن حذف طلب في حالة ${request['status']}',
+                                ),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                          } else {
+                            _deleteRequest(request['id'], index);
+                          }
+                        },
+                      ),
                     ),
                   ),
                 );

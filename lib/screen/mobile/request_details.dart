@@ -630,7 +630,7 @@ class _RequestDetailsState extends State<RequestDetails> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('هل أنت متأكد من رفض هذا الطلب؟'),
+            const Text('هل أنت متأكد من رفض هذا الطلب؟ سيتم حذفه نهائياً.'),
             const SizedBox(height: 12),
             TextField(
               controller: reasonController,
@@ -650,19 +650,48 @@ class _RequestDetailsState extends State<RequestDetails> {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
               Navigator.pop(context);
-              Navigator.pop(context); 
+              _rejectRequest();
             },
-            child: const Text('رفض', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'رفض وحذف',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
     );
   }
 
+  Future<void> _rejectRequest() async {
+    setState(() => _isLoading = true);
+    try {
+      await TransportRequestService.deleteTransportRequest(
+        widget.request['id'],
+      );
+      if (mounted) {
+        setState(() => _isLoading = false);
+        MotionToast.success(
+          title: const Text("تم الحذف"),
+          description: const Text("تم رفض وحذف الطلب بنجاح"),
+          displaySideBar: false,
+        ).show(context);
+        Navigator.pop(context, true); // Return true to indicate change
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        MotionToast.error(
+          title: const Text("خطأ"),
+          description: Text("فشل حذف الطلب: $e"),
+          displaySideBar: false,
+        ).show(context);
+      }
+    }
+  }
+
   void _assignVehicle() {
     _showDriverSelectionDialog();
   }
-
 
   void _showDriverSelectionDialog() {
     Future<List<Map<String, dynamic>>> _driversFuture =
@@ -846,14 +875,16 @@ class _RequestDetailsState extends State<RequestDetails> {
         animationType: AnimationType.slideInFromTop,
         toastDuration: const Duration(seconds: 1),
         toastAlignment: Alignment.topCenter,
+        displaySideBar: false,
       ).show(context);
-      Navigator.pop(context); 
+      Navigator.pop(context);
     } catch (e) {
       MotionToast.error(
         description: Text(e.toString()),
         animationType: AnimationType.slideInFromTop,
         toastDuration: const Duration(seconds: 1),
         toastAlignment: Alignment.topCenter,
+        displaySideBar: false,
       ).show(context);
     } finally {
       if (mounted) setState(() => _isLoading = false);

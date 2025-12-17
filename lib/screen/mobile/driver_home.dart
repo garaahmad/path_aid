@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:motion_toast/motion_toast.dart';
 import 'package:path_aid/services/transport_request_service.dart';
+import 'package:path_aid/services/facility_service.dart';
 
 class DriverHome extends StatefulWidget {
   const DriverHome({super.key});
@@ -24,20 +25,59 @@ class _DriverHomeState extends State<DriverHome> {
   Future<void> _fetchTasks() async {
     setState(() => _isLoading = true);
     try {
-      final allRequests =
-          await TransportRequestService.getAllTransportRequests();
+      final results = await Future.wait([
+        TransportRequestService.getAllTransportRequests(),
+        FacilityService.getAllFacilities(),
+      ]);
+
+      final allRequests = (results[0] as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+      final facilities = (results[1] as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+      final facilitiesMap = {
+        for (var f in facilities) f['id'].toString(): f['name'],
+      };
+
       if (mounted) {
         setState(() {
-          _myTasks = allRequests.where((r) {
-            final status = r['status'];
-            return status != 'PENDING' && status != 'CANCELLED';
-          }).toList();
+          _myTasks = allRequests
+              .where((r) {
+                final status = r['status'];
+                return status != 'PENDING' && status != 'CANCELLED';
+              })
+              .map((r) {
+                return {
+                  ...r,
+                  'fromFacilityName':
+                      facilitiesMap[r['fromFacilityId'].toString()] ??
+                      'منشأة #${r['fromFacilityId']}',
+                  'toFacilityName':
+                      facilitiesMap[r['toFacilityId'].toString()] ??
+                      'منشأة #${r['toFacilityId']}',
+                };
+              })
+              .toList();
+
+          // Sort prioritization: Active statuses > ACCEPTED > COMPLETED
           _myTasks.sort((a, b) {
-            final isCompletedA = a['status'] == 'COMPLETED';
-            final isCompletedB = b['status'] == 'COMPLETED';
-            if (isCompletedA && !isCompletedB) return 1;
-            if (!isCompletedA && isCompletedB) return -1;
-            return 0;
+            int score(String status) {
+              switch (status) {
+                case TransportRequestStatus.ON_THE_WAY:
+                case TransportRequestStatus.ARRIVED_AT_FACILITY:
+                case TransportRequestStatus.TRANSFERRED_TO_DESTINATION:
+                  return 3; // Highest priority (Active)
+                case TransportRequestStatus.ACCEPTED:
+                  return 2; // Waiting to start
+                case TransportRequestStatus.PENDING:
+                  return 1;
+                case TransportRequestStatus.COMPLETED:
+                case TransportRequestStatus.CANCELLED:
+                default:
+                  return 0; // Completed or inactive
+              }
+            }
+
+            return score(b['status']).compareTo(score(a['status']));
           });
 
           _isLoading = false;
@@ -52,6 +92,7 @@ class _DriverHomeState extends State<DriverHome> {
           animationType: AnimationType.slideInFromTop,
           toastDuration: const Duration(seconds: 1),
           toastAlignment: Alignment.topCenter,
+          displaySideBar: false,
         ).show(context);
       }
     }
@@ -59,7 +100,26 @@ class _DriverHomeState extends State<DriverHome> {
 
   Map<String, dynamic>? get _currentActiveTask {
     try {
-      return _myTasks.firstWhere((t) => t['status'] != 'COMPLETED');
+      // Priority 1: Missions in progress (ON_THE_WAY, ARRIVED, TRANSFERRED)
+      // Priority 2: Accepted missions (waiting to start)
+      final inProgress = _myTasks.firstWhere(
+        (t) =>
+            t['status'] == TransportRequestStatus.ON_THE_WAY ||
+            t['status'] == TransportRequestStatus.ARRIVED_AT_FACILITY ||
+            t['status'] == TransportRequestStatus.TRANSFERRED_TO_DESTINATION,
+        orElse: () => {},
+      );
+
+      if (inProgress.isNotEmpty) return inProgress;
+
+      final accepted = _myTasks.firstWhere(
+        (t) => t['status'] == TransportRequestStatus.ACCEPTED,
+        orElse: () => {},
+      );
+
+      if (accepted.isNotEmpty) return accepted;
+
+      return null;
     } catch (e) {
       return null;
     }
@@ -67,7 +127,6 @@ class _DriverHomeState extends State<DriverHome> {
 
   @override
   Widget build(BuildContext context) {
-
     final displayedTasks = _selectedTab == 0
         ? _myTasks.where((t) => t['status'] != 'COMPLETED').toList()
         : _myTasks.where((t) => t['status'] == 'COMPLETED').toList();
@@ -107,7 +166,8 @@ class _DriverHomeState extends State<DriverHome> {
 
                                 if (displayedTasks.isNotEmpty &&
                                     (_selectedTab == 1 ||
-                                        displayedTasks.length > 1))
+                                        displayedTasks.length > 1 ||
+                                        _currentActiveTask == null))
                                   _buildTaskList(
                                     displayedTasks,
                                     _selectedTab == 0,
@@ -179,160 +239,51 @@ class _DriverHomeState extends State<DriverHome> {
   }
 
   Widget _buildCurrentTask(Map<String, dynamic> task) {
-    final status = task['status'] ?? 'ACCEPTED';
-    final isEmergency =
-        task['priority'] == 'CRITICAL' || task['priority'] == 'HIGH';
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'المهمة الحالية',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1e293b),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildTaskCard(task, isProminent: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTaskList(List<Map<String, dynamic>> tasks, bool excludeActive) {
+    final activeId = _currentActiveTask?['id'];
+    final list = excludeActive
+        ? tasks.where((t) => t['id'] != activeId).toList()
+        : tasks;
+
+    if (list.isEmpty) return SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'المهمة الحالية',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0f172a),
-                ),
-              ),
-              if (isEmergency)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.red[50],
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.red[100]!),
-                  ),
-                  child: const Text(
-                    'أولوية عالية',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFDC2626),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey[100]!),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'المريض',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF64748b),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              task['patientName'] ?? 'غير معروف',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF0f172a),
-                              ),
-                            ),
-                            Text(
-                              'العمر: ${task['patientAge'] ?? 0}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF64748b),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF135bec).withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.person,
-                          color: Color(0xFF135bec),
-                          size: 28,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  _buildTimeline(
-                    'منشأة #${task['fromFacilityId']}',
-                    'منشأة #${task['toFacilityId']}',
-                  ),
-                  const SizedBox(height: 20),
-                  _buildStatusProgress(status),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () => _updateStatus(task),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _getStatusColor(status),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 4,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _getNextStatusButtonLabel(status),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(
-                            Icons.arrow_forward,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+          Text(
+            _selectedTab == 0 ? 'مهام أخرى' : 'المهام المكتملة',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1e293b),
             ),
           ),
+          const SizedBox(height: 12),
+          ...list
+              .map((task) => _buildTaskCard(task, isProminent: false))
+              .toList(),
         ],
       ),
     );
@@ -418,11 +369,11 @@ class _DriverHomeState extends State<DriverHome> {
       case TransportRequestStatus.ACCEPTED:
         return 'بدء الرحلة (في الطريق)';
       case TransportRequestStatus.ON_THE_WAY:
-        return 'تأكيد الوصول للمنشأة';
+        return 'وصول للمنشأة';
       case TransportRequestStatus.ARRIVED_AT_FACILITY:
-        return 'تأكيد النقل للوجهة';
+        return 'نقل للوجهة';
       case TransportRequestStatus.TRANSFERRED_TO_DESTINATION:
-        return 'إكمال المهمة';
+        return 'إنهاء المهمة (مكتمل)';
       case TransportRequestStatus.COMPLETED:
         return 'المهمة مكتملة';
       default:
@@ -439,9 +390,8 @@ class _DriverHomeState extends State<DriverHome> {
       case TransportRequestStatus.ARRIVED_AT_FACILITY:
         return 2;
       case TransportRequestStatus.TRANSFERRED_TO_DESTINATION:
-        return 3;
       case TransportRequestStatus.COMPLETED:
-        return 4;
+        return 3;
       default:
         return 0;
     }
@@ -450,15 +400,15 @@ class _DriverHomeState extends State<DriverHome> {
   Color _getStatusColor(String status) {
     switch (status) {
       case TransportRequestStatus.ACCEPTED:
-        return const Color(0xFF135bec);
+        return const Color(0xFF135bec); // Blue
       case TransportRequestStatus.ON_THE_WAY:
-        return const Color(0xFF2563EB);
+        return const Color(0xFFF59E0B); // Orange - Distinct from Blue
       case TransportRequestStatus.ARRIVED_AT_FACILITY:
         return const Color(0xFFD97706);
       case TransportRequestStatus.TRANSFERRED_TO_DESTINATION:
         return const Color(0xFF7C3AED);
       case TransportRequestStatus.COMPLETED:
-        return const Color(0xFF059669);
+        return const Color(0xFF059669); // Green
       default:
         return Colors.grey;
     }
@@ -469,60 +419,54 @@ class _DriverHomeState extends State<DriverHome> {
     final statusColor = _getStatusColor(currentStatus);
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[100]!),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'حالة النقل: ',
-                style: TextStyle(fontSize: 12, color: Color(0xFF64748b)),
-              ),
-              Text(
-                _getStatusLabel(currentStatus),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: statusColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildProgressDot(
-                Icons.check,
+              _buildStepItem(
+                'مقبول',
+                Icons.check_circle_outline,
                 0,
                 progress,
-                statusColor,
-              ), 
-              Expanded(child: _buildProgressLine(progress >= 1, statusColor)),
-              _buildProgressDot(
+                const Color(0xFF135bec),
+              ),
+              _buildConnector(0, progress, const Color(0xFF135bec)),
+              _buildStepItem(
+                'في الطريق',
                 Icons.directions_car,
                 1,
                 progress,
-                statusColor,
-              ), 
-              Expanded(child: _buildProgressLine(progress >= 2, statusColor)),
-              _buildProgressDot(
+                const Color(0xFFF59E0B),
+              ),
+              _buildConnector(1, progress, const Color(0xFFD97706)),
+              _buildStepItem(
+                'وصل',
                 Icons.location_on,
                 2,
                 progress,
-                statusColor,
-              ), 
-              Expanded(child: _buildProgressLine(progress >= 3, statusColor)),
-              _buildProgressDot(
+                const Color(0xFFD97706),
+              ),
+              _buildConnector(2, progress, const Color(0xFF7C3AED)),
+              _buildStepItem(
+                'نُقل',
                 Icons.flag,
                 3,
                 progress,
-                statusColor,
+                const Color(0xFF7C3AED),
               ),
             ],
           ),
@@ -531,106 +475,256 @@ class _DriverHomeState extends State<DriverHome> {
     );
   }
 
-  Widget _buildProgressDot(
+  Widget _buildStepItem(
+    String label,
     IconData icon,
     int stepIndex,
     int currentProgress,
-    Color color,
+    Color activeColor,
   ) {
-    bool isActive = currentProgress >= stepIndex;
+    final bool isCompleted = currentProgress >= stepIndex;
+    final bool isCurrent = currentProgress == stepIndex;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: isCompleted ? activeColor : Colors.grey[100],
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isCompleted ? activeColor : Colors.grey[300]!,
+              width: 2,
+            ),
+            boxShadow: isCurrent
+                ? [
+                    BoxShadow(
+                      color: activeColor.withOpacity(0.3),
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Icon(
+            isCompleted ? Icons.check : icon,
+            size: 16,
+            color: isCompleted ? Colors.white : Colors.grey[400],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: isCompleted || isCurrent
+                ? FontWeight.bold
+                : FontWeight.normal,
+            color: isCompleted || isCurrent
+                ? activeColor
+                : const Color(0xFF94a3b8),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConnector(int stepIndex, int currentProgress, Color color) {
+    final bool isActive = currentProgress > stepIndex;
+    return Expanded(
+      child: Container(
+        height: 3,
+        margin: const EdgeInsets.fromLTRB(
+          4,
+          0,
+          4,
+          20,
+        ), // Lift slightly to align with dots
+        decoration: BoxDecoration(
+          color: isActive ? color : Colors.grey[200],
+          borderRadius: BorderRadius.circular(1.5),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTaskCard(Map<String, dynamic> task, {bool isProminent = true}) {
+    final status = task['status'] ?? 'UNKNOWN';
+
+    if (!isProminent) {
+      // Minimal card for 'Other Tasks'
+      return Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  task['patientName'] ?? 'غير معروف',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0f172a),
+                  ),
+                ),
+                Text(
+                  _getStatusLabel(status),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _getStatusColor(status),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+          ],
+        ),
+      );
+    }
+
+    // Full detailed card for 'Current Mission'
+    final isCompleted = status == 'COMPLETED';
+    final isEmergency =
+        task['priority'] == 'CRITICAL' || task['priority'] == 'HIGH';
+
     return Container(
-      width: 24,
-      height: 24,
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: isActive ? color : Colors.grey[200],
-        shape: BoxShape.circle,
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Icon(
-        icon,
-        size: 14,
-        color: isActive ? Colors.white : Colors.grey[400],
-      ),
-    );
-  }
-
-  Widget _buildProgressLine(bool isActive, Color color) {
-    return Container(
-      height: 2,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      color: isActive ? color : Colors.grey[300],
-    );
-  }
-
-  Widget _buildTaskList(List<Map<String, dynamic>> tasks, bool excludeActive) {
-    final list = excludeActive
-        ? tasks.where((t) => t['id'] != _currentActiveTask?['id']).toList()
-        : tasks;
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _selectedTab == 0 ? 'مهام أخرى' : 'المهام المكتملة',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0f172a),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.person, color: Colors.blue, size: 28),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (isEmergency)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red[50],
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.red[100]!),
+                        ),
+                        child: const Text(
+                          'أولوية عالية',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFDC2626),
+                          ),
+                        ),
+                      ),
+                    const Text(
+                      'المريض',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF64748b)),
+                    ),
+                    Text(
+                      task['patientName'] ?? 'غير معروف',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0f172a),
+                      ),
+                    ),
+                    Text(
+                      'العمر: ${task['patientAge'] ?? 0}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF64748b),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _buildTimeline(
+              task['fromFacilityName'] ?? 'منشأة #${task['fromFacilityId']}',
+              task['toFacilityName'] ?? 'منشأة #${task['toFacilityId']}',
+            ),
+            if (!isCompleted) ...[
+              const SizedBox(height: 20),
+              _buildStatusProgress(status),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () => _updateStatus(task),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _getStatusColor(status),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 4,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _getNextStatusButtonLabel(status),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Dynamic Icon based on next action
+                      Icon(
+                        status ==
+                                TransportRequestStatus
+                                    .TRANSFERRED_TO_DESTINATION
+                            ? Icons.check_circle
+                            : Icons.arrow_back, // RTL forward
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 8),
-          ...list.map((task) => _buildTaskCard(task)).toList(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTaskCard(Map<String, dynamic> task) {
-    final status = task['status'] ?? 'UNKNOWN';
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    task['patientName'] ?? 'غير معروف',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0f172a),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${_getStatusLabel(status)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _getStatusColor(status),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const Icon(Icons.arrow_back_ios, size: 16, color: Colors.grey),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -704,9 +798,9 @@ class _DriverHomeState extends State<DriverHome> {
         nextStatus = TransportRequestStatus.COMPLETED;
         break;
       case TransportRequestStatus.COMPLETED:
-        return; 
+        return;
       default:
-        nextStatus = TransportRequestStatus.ON_THE_WAY;
+        nextStatus = TransportRequestStatus.COMPLETED;
     }
 
     try {
@@ -719,6 +813,7 @@ class _DriverHomeState extends State<DriverHome> {
         animationType: AnimationType.slideInFromTop,
         toastDuration: const Duration(seconds: 1),
         toastAlignment: Alignment.topCenter,
+        displaySideBar: false,
       ).show(context);
       _fetchTasks();
     } catch (e) {
@@ -729,6 +824,7 @@ class _DriverHomeState extends State<DriverHome> {
         animationType: AnimationType.slideInFromTop,
         toastDuration: const Duration(seconds: 1),
         toastAlignment: Alignment.topCenter,
+        displaySideBar: false,
       ).show(context);
     }
   }

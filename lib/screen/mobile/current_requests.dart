@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:path_aid/services/vehicle_service.dart';
 import 'package:motion_toast/motion_toast.dart';
 
 class CurrentRequests extends StatefulWidget {
@@ -46,9 +45,6 @@ class CurrentRequests extends StatefulWidget {
 }
 
 class _CurrentRequestsState extends State<CurrentRequests> {
-  List<Map<String, dynamic>> _availableVehicles = [];
-  bool _isVehiclesLoading = false;
-
   final List<String> statusSteps = [
     'مستلم',
     'في الطريق',
@@ -58,31 +54,6 @@ class _CurrentRequestsState extends State<CurrentRequests> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _fetchVehicles();
-  }
-
-  Future<void> _fetchVehicles() async {
-    setState(() {
-      _isVehiclesLoading = true;
-    });
-    try {
-      final vehicles = await VehicleService.getAllVehicles();
-      setState(() {
-        _availableVehicles = vehicles
-            .where((v) => v['status'] == 'ACTIVE')
-            .toList();
-        _isVehiclesLoading = false;
-      });
-    } catch (e) {
-      print("Error fetching vehicles: $e");
-      setState(() {
-        _isVehiclesLoading = false;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -186,64 +157,6 @@ class _CurrentRequestsState extends State<CurrentRequests> {
     );
   }
 
-  void _showVehicleSelectionDialog(Map<String, dynamic> request) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('اختر المركبة'),
-        content: Container(
-          width: double.maxFinite,
-          height: 300,
-          child: _isVehiclesLoading
-              ? Center(child: CircularProgressIndicator())
-              : _availableVehicles.isEmpty
-              ? Center(child: Text('لا توجد مركبات نشطة متاحة'))
-              : ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _availableVehicles.length,
-                  itemBuilder: (context, index) {
-                    final vehicle = _availableVehicles[index];
-                    return ListTile(
-                      leading: Icon(Icons.local_taxi, color: Color(0xFF012e47)),
-                      title: Text(
-                        vehicle['code'] ?? 'رمز غير معروف',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text('السعة: ${vehicle['capacity']} مقاعد'),
-                      trailing: request['vehicleName'] == vehicle['code']
-                          ? Icon(Icons.check_circle, color: Colors.green)
-                          : null,
-                      onTap: () {
-                        setState(() {
-                          final reqIndex = CurrentRequests.queue.indexWhere(
-                            (r) => r['id'] == request['id'],
-                          );
-                          if (reqIndex != -1) {
-                            CurrentRequests.queue[reqIndex]['vehicleName'] =
-                                vehicle['code'];
-                          }
-                        });
-                        Navigator.pop(context);
-                        _showRequestDetails(
-                          CurrentRequests.queue.firstWhere(
-                            (r) => r['id'] == request['id'],
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('إلغاء'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildProgressBar(Map<String, dynamic> request) {
     int currentStep = request['currentStep'] ?? 1;
     int totalSteps = statusSteps.length;
@@ -278,19 +191,15 @@ class _CurrentRequestsState extends State<CurrentRequests> {
               statusSteps.length;
 
           MotionToast.success(
-            toastDuration: const Duration(seconds: 1),
-            opacity: 0.9,
-            displaySideBar: false,
-            animationDuration: const Duration(
-              milliseconds: 3000,
-            ), 
-            title: Text("نجاح", style: TextStyle(color: Colors.white)),
-            description: Text(
+            title: const Text("نجاح", style: TextStyle(color: Colors.white)),
+            description: const Text(
               'تم اتمام الرحلة بنجاح. سيتم إخفاء الطلب بعد 10 ثواني.',
               style: TextStyle(color: Colors.white),
             ),
             animationType: AnimationType.slideInFromTop,
+            toastDuration: const Duration(seconds: 2),
             toastAlignment: Alignment.topCenter,
+            displaySideBar: false,
           ).show(context);
 
           Future.delayed(Duration(seconds: 10), () {

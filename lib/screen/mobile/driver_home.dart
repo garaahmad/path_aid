@@ -90,7 +90,7 @@ class _DriverHomeState extends State<DriverHome> {
         MotionToast.error(
           description: Text('فشل تحميل المهام: $e'),
           animationType: AnimationType.slideInFromTop,
-          toastDuration: const Duration(seconds: 1),
+          toastDuration: const Duration(seconds: 2),
           toastAlignment: Alignment.topCenter,
           displaySideBar: false,
         ).show(context);
@@ -416,7 +416,6 @@ class _DriverHomeState extends State<DriverHome> {
 
   Widget _buildStatusProgress(String currentStatus) {
     final progress = _getProgressFromStatus(currentStatus);
-    final statusColor = _getStatusColor(currentStatus);
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
@@ -595,8 +594,20 @@ class _DriverHomeState extends State<DriverHome> {
 
     // Full detailed card for 'Current Mission'
     final isCompleted = status == 'COMPLETED';
-    final isEmergency =
-        task['priority'] == 'CRITICAL' || task['priority'] == 'HIGH';
+    final priority = task['priority'] ?? 'MEDIUM';
+
+    Color priorityColor = Colors.green;
+    String priorityText = 'أولوية منخفضة';
+    if (priority == 'MEDIUM') {
+      priorityColor = Colors.orange;
+      priorityText = 'أولوية متوسطة';
+    } else if (priority == 'HIGH') {
+      priorityColor = Colors.red;
+      priorityText = 'أولوية عالية';
+    } else if (priority == 'CRITICAL') {
+      priorityColor = Colors.purple;
+      priorityText = 'أولوية حرجة';
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -620,6 +631,57 @@ class _DriverHomeState extends State<DriverHome> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: priorityColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: priorityColor.withOpacity(0.2),
+                          ),
+                        ),
+                        child: Text(
+                          priorityText,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: priorityColor,
+                          ),
+                        ),
+                      ),
+                      const Text(
+                        'المريض',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748b),
+                        ),
+                      ),
+                      Text(
+                        task['patientName'] ?? 'غير معروف',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0f172a),
+                        ),
+                      ),
+                      Text(
+                        'العمر: ${task['patientAge'] ?? 0}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748b),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -628,57 +690,45 @@ class _DriverHomeState extends State<DriverHome> {
                   ),
                   child: const Icon(Icons.person, color: Colors.blue, size: 28),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    if (isEmergency)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 4),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red[50],
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.red[100]!),
-                        ),
-                        child: const Text(
-                          'أولوية عالية',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFDC2626),
-                          ),
-                        ),
-                      ),
-                    const Text(
-                      'المريض',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF64748b)),
-                    ),
-                    Text(
-                      task['patientName'] ?? 'غير معروف',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0f172a),
-                      ),
-                    ),
-                    Text(
-                      'العمر: ${task['patientAge'] ?? 0}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748b),
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
             const SizedBox(height: 20),
             _buildTimeline(
               task['fromFacilityName'] ?? 'منشأة #${task['fromFacilityId']}',
               task['toFacilityName'] ?? 'منشأة #${task['toFacilityId']}',
+            ),
+            const SizedBox(height: 20),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'ملاحظات المريض:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF64748b),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    task['notes'] != null && task['notes'].toString().isNotEmpty
+                        ? task['notes']
+                        : 'لا توجد ملاحظات إضافية',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                ],
+              ),
             ),
             if (!isCompleted) ...[
               const SizedBox(height: 20),
@@ -811,7 +861,7 @@ class _DriverHomeState extends State<DriverHome> {
       MotionToast.success(
         description: const Text('تم تحديث الحالة بنجاح'),
         animationType: AnimationType.slideInFromTop,
-        toastDuration: const Duration(seconds: 1),
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
         displaySideBar: false,
       ).show(context);
@@ -819,10 +869,8 @@ class _DriverHomeState extends State<DriverHome> {
     } catch (e) {
       MotionToast.error(
         description: Text('فشل الانتقال إلى $nextStatus: $e'),
-        height: 100,
-        width: 350,
         animationType: AnimationType.slideInFromTop,
-        toastDuration: const Duration(seconds: 1),
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
         displaySideBar: false,
       ).show(context);

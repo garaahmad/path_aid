@@ -5,16 +5,16 @@ class UserService {
   static const String _baseUrl = 'https://pathaid-backend.onrender.com/api';
 
   static Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
 
   static Future<List<Map<String, dynamic>>> getAllUsers() async {
     final url = Uri.parse('$_baseUrl/users');
     try {
-      final response = await http.get(url, headers: _headers).timeout(
-            const Duration(seconds: 20),
-          );
+      final response = await http
+          .get(url, headers: _headers)
+          .timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 200) {
         final dynamic decodedData = json.decode(response.body);
@@ -25,9 +25,7 @@ class UserService {
         }
         throw Exception('تنسيق البيانات غير متوقع');
       } else {
-        throw Exception(
-          'فشل تحميل المستخدمين: كود ${response.statusCode}',
-        );
+        throw Exception('فشل تحميل المستخدمين: كود ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('فشل جلب المستخدمين: $e');
@@ -96,9 +94,20 @@ class UserService {
         headers: _headers,
         body: json.encode(userData),
       );
-      if (response.statusCode != 201) {
-        final error = json.decode(response.body);
-        throw Exception(error['info'] ?? 'فشل إنشاء المستخدم');
+      if (response.statusCode != 201 && response.statusCode != 200) {
+        String errorMessage = 'فشل إنشاء المستخدم';
+        if (response.statusCode == 409) {
+          errorMessage =
+              'هذا المستخدم موجود مسبقاً (البريد أو الهاتف مستخدم بالفعل)';
+        }
+
+        if (response.body.isNotEmpty) {
+          try {
+            final error = json.decode(response.body);
+            errorMessage = error['info'] ?? error['message'] ?? errorMessage;
+          } catch (_) {}
+        }
+        throw Exception(errorMessage);
       }
     } catch (e) {
       rethrow;
@@ -115,9 +124,18 @@ class UserService {
         headers: _headers,
         body: json.encode(userData),
       );
-      if (response.statusCode != 200) {
-        final error = json.decode(response.body);
-        throw Exception(error['info'] ?? 'فشل تحديث المستخدم');
+      if (response.statusCode != 200 &&
+          response.statusCode != 204 &&
+          response.statusCode != 201) {
+        if (response.body.isNotEmpty) {
+          try {
+            final error = json.decode(response.body);
+            throw Exception(error['info'] ?? 'فشل تحديث المستخدم');
+          } catch (_) {
+            throw Exception('فشل تحديث المستخدم: كود ${response.statusCode}');
+          }
+        }
+        throw Exception('فشل تحديث المستخدم: كود ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
@@ -126,12 +144,27 @@ class UserService {
 
   static Future<void> deleteUser(int userId) async {
     try {
-      final response = await http.delete(Uri.parse('$_baseUrl/users/$userId'));
-      if (response.statusCode != 204) {
-        final error = json.decode(response.body);
-        throw Exception(error['info'] ?? 'فشل حذف المستخدم');
+      print('Deleting user: $userId');
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/users/$userId'),
+        headers: _headers,
+      );
+      print('Delete response status: ${response.statusCode}');
+      print('Delete response body: ${response.body}');
+
+      if (response.statusCode != 204 && response.statusCode != 200) {
+        if (response.body.isNotEmpty) {
+          try {
+            final error = json.decode(response.body);
+            throw Exception(error['info'] ?? 'فشل حذف المستخدم');
+          } catch (_) {
+            throw Exception('فشل حذف المستخدم: كود ${response.statusCode}');
+          }
+        }
+        throw Exception('فشل حذف المستخدم: كود ${response.statusCode}');
       }
     } catch (e) {
+      print('Delete user error: $e');
       rethrow;
     }
   }

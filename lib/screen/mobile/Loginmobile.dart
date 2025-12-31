@@ -252,12 +252,8 @@ class _LoginmobileState extends State<Loginmobile> {
           style: TextStyle(color: Colors.white),
         ),
         animationType: AnimationType.slideInFromTop,
-        toastDuration: const Duration(seconds: 1),
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
-
-        width: 300,
-        height: 50,
-        dismissable: true,
         displaySideBar: false,
       ).show(context);
     }

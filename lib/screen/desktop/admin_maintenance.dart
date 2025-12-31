@@ -233,8 +233,9 @@ class _AdminMaintenanceState extends State<AdminMaintenance> {
         isApproved ? 'تمت الموافقة على طلب الصيانة' : 'تم رفض طلب الصيانة',
       ),
       animationType: AnimationType.slideInFromTop,
-      toastDuration: const Duration(seconds: 1),
+      toastDuration: const Duration(seconds: 2),
       toastAlignment: Alignment.topCenter,
+      displaySideBar: false,
     ).show(context);
   }
 
@@ -322,10 +323,11 @@ class _AdminMaintenanceState extends State<AdminMaintenance> {
             onPressed: () {
               Navigator.pop(context);
               MotionToast.success(
-                description: Text('تم جدولة الصيانة بنجاح'),
+                description: const Text('تم جدولة الصيانة بنجاح'),
                 animationType: AnimationType.slideInFromTop,
-                toastDuration: const Duration(seconds: 1),
+                toastDuration: const Duration(seconds: 2),
                 toastAlignment: Alignment.topCenter,
+                displaySideBar: false,
               ).show(context);
             },
             child: Text('تأكيد الجدولة'),

@@ -6,6 +6,11 @@ import 'package:http/http.dart' as http;
 class VehicleService {
   static const String _baseUrl = 'https://pathaid-backend.onrender.com/api';
 
+  static Map<String, String> get _headers => {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+
   static Future<List<Map<String, dynamic>>> getAllVehicles() async {
     try {
       final response = await http
@@ -59,9 +64,16 @@ class VehicleService {
       body: body,
     );
 
-    if (response.statusCode != 201) {
-      final error = json.decode(response.body);
-      throw Exception(error['info'] ?? 'فشل إنشاء المركبة');
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      if (response.body.isNotEmpty) {
+        try {
+          final error = json.decode(response.body);
+          throw Exception(error['info'] ?? 'فشل إنشاء المركبة');
+        } catch (e) {
+          throw Exception('فشل إنشاء المركبة: كود ${response.statusCode}');
+        }
+      }
+      throw Exception('فشل إنشاء المركبة: كود ${response.statusCode}');
     }
   }
 
@@ -83,9 +95,18 @@ class VehicleService {
       body: body,
     );
 
-    if (response.statusCode != 200) {
-      final error = json.decode(response.body);
-      throw Exception(error['info'] ?? 'فشل تحديث المركبة');
+    if (response.statusCode != 200 &&
+        response.statusCode != 204 &&
+        response.statusCode != 201) {
+      if (response.body.isNotEmpty) {
+        try {
+          final error = json.decode(response.body);
+          throw Exception(error['info'] ?? 'فشل تحديث المركبة');
+        } catch (e) {
+          throw Exception('فشل تحديث المركبة: كود ${response.statusCode}');
+        }
+      }
+      throw Exception('فشل تحديث المركبة: كود ${response.statusCode}');
     }
   }
 
@@ -136,14 +157,21 @@ class VehicleService {
   static Future<void> deleteVehicle(int vehicleId) async {
     final response = await http.delete(
       Uri.parse('$_baseUrl/vehicles/$vehicleId'),
+      headers: _headers,
     );
 
-    if (response.statusCode != 204) {
-      final error = json.decode(response.body);
-      throw Exception(error['info'] ?? 'فشل حذف المركبة');
+    if (response.statusCode != 204 && response.statusCode != 200) {
+      if (response.body.isNotEmpty) {
+        try {
+          final error = json.decode(response.body);
+          throw Exception(error['info'] ?? 'فشل حذف المركبة');
+        } catch (e) {
+          throw Exception('فشل حذف المركبة: كود ${response.statusCode}');
+        }
+      }
+      throw Exception('فشل حذف المركبة: كود ${response.statusCode}');
     }
   }
-
 
   static String getStatusText(String? status) {
     switch (status) {

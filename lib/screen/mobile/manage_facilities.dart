@@ -424,10 +424,10 @@ class _ManageFacilitiesState extends State<ManageFacilities> {
             _isLoadingCities = false;
           });
           MotionToast.error(
-            title: Text("خطأ", style: TextStyle(color: Colors.white)),
-            description: Text("فشل تحميل المدن"),
+            title: const Text("خطأ", style: TextStyle(color: Colors.white)),
+            description: const Text("فشل تحميل المدن"),
             animationType: AnimationType.slideInFromTop,
-            toastDuration: const Duration(seconds: 1),
+            toastDuration: const Duration(seconds: 2),
             toastAlignment: Alignment.topCenter,
             displaySideBar: false,
           ).show(context);
@@ -593,13 +593,13 @@ class _ManageFacilitiesState extends State<ManageFacilities> {
       Navigator.pop(context);
 
       MotionToast.success(
-        title: Text("نجاح", style: TextStyle(color: Colors.white)),
+        title: const Text("نجاح", style: TextStyle(color: Colors.white)),
         description: Text(
           "تم إنشاء المنشأة $name بنجاح",
-          style: TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.white),
         ),
         animationType: AnimationType.slideInFromTop,
-        toastDuration: const Duration(seconds: 1),
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
         displaySideBar: false,
       ).show(context);
@@ -609,10 +609,10 @@ class _ManageFacilitiesState extends State<ManageFacilities> {
       Navigator.pop(context);
 
       MotionToast.error(
-        title: Text("خطأ", style: TextStyle(color: Colors.white)),
+        title: const Text("خطأ", style: TextStyle(color: Colors.white)),
         description: Text(e.toString()),
         animationType: AnimationType.slideInFromTop,
-        toastDuration: const Duration(seconds: 1),
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
         displaySideBar: false,
       ).show(context);
@@ -699,14 +699,17 @@ class _ManageFacilitiesState extends State<ManageFacilities> {
                   await FacilityService.deleteFacility(facility['id']);
                   Navigator.pop(mainContext);
                   MotionToast.success(
-                    title: Text("نجاح", style: TextStyle(color: Colors.white)),
-                    description: Text(
+                    title: const Text(
+                      "نجاح",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    description: const Text(
                       "تم حذف المنشأة بنجاح",
                       style: TextStyle(color: Colors.white),
                     ),
                     displaySideBar: false,
                     animationType: AnimationType.slideInFromTop,
-                    toastDuration: const Duration(seconds: 1),
+                    toastDuration: const Duration(seconds: 2),
                     toastAlignment: Alignment.topCenter,
                   ).show(mainContext);
 
@@ -715,10 +718,10 @@ class _ManageFacilitiesState extends State<ManageFacilities> {
                   Navigator.pop(mainContext);
 
                   MotionToast.error(
-                    title: Text("خطأ"),
+                    title: const Text("خطأ"),
                     description: Text(e.toString()),
                     animationType: AnimationType.slideInFromTop,
-                    toastDuration: const Duration(seconds: 1),
+                    toastDuration: const Duration(seconds: 2),
                     toastAlignment: Alignment.topCenter,
                     displaySideBar: false,
                   ).show(mainContext);

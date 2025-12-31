@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:motion_toast/motion_toast.dart';
 import '../../services/user_service.dart';
+import '../../services/facility_service.dart';
 
 class AdminUsers extends StatefulWidget {
   const AdminUsers({super.key});
@@ -17,12 +18,15 @@ class _AdminUsersState extends State<AdminUsers> {
   final _passwordController = TextEditingController();
   final _phoneController = TextEditingController();
   final _ageController = TextEditingController();
-  final _facilityIdController = TextEditingController();
 
   String _selectedRole = 'DRIVER';
+  int? _selectedFacilityId;
+  List<Map<String, dynamic>> _facilities = [];
   List<Map<String, dynamic>> _users = [];
+  List<Map<String, dynamic>> _filteredUsers = [];
   bool _isLoading = false;
   bool _isSubmitting = false;
+  final _searchController = TextEditingController();
 
   // For editing
   int? _editingUserId;
@@ -31,6 +35,16 @@ class _AdminUsersState extends State<AdminUsers> {
   void initState() {
     super.initState();
     _loadUsers();
+    _loadFacilities();
+  }
+
+  Future<void> _loadFacilities() async {
+    try {
+      final facilities = await FacilityService.getAllFacilities();
+      setState(() => _facilities = facilities);
+    } catch (e) {
+      debugPrint('Error loading facilities: $e');
+    }
   }
 
   @override
@@ -41,25 +55,28 @@ class _AdminUsersState extends State<AdminUsers> {
     _passwordController.dispose();
     _phoneController.dispose();
     _ageController.dispose();
-    _facilityIdController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadUsers() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadUsers({bool silent = false}) async {
+    if (!silent) setState(() => _isLoading = true);
     try {
       final users = await UserService.getAllUsers();
-      setState(() {
-        _users = users;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
+        setState(() {
+          _users = users;
+          _filterUsers();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
         MotionToast.error(
           description: Text('فشل تحميل المستخدمين: ${e.toString()}'),
           animationType: AnimationType.slideInFromTop,
-          toastDuration: const Duration(seconds: 1),
+          toastDuration: const Duration(seconds: 2),
           toastAlignment: Alignment.topCenter,
           displaySideBar: false,
         ).show(context);
@@ -67,223 +84,186 @@ class _AdminUsersState extends State<AdminUsers> {
     }
   }
 
+  void _filterUsers() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredUsers = List.from(_users);
+      } else {
+        _filteredUsers = _users.where((user) {
+          final fullName = '${user['fName']} ${user['lName']}'.toLowerCase();
+          final email = (user['email'] ?? '').toLowerCase();
+          final phone = (user['phoneNumber'] ?? '').toLowerCase();
+          return fullName.contains(query) ||
+              email.contains(query) ||
+              phone.contains(query);
+        }).toList();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
+    return Container(
+      padding: const EdgeInsets.all(32.0),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(),
-          SizedBox(height: 24),
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 1, child: _buildUserForm()),
-                SizedBox(width: 24),
-                Expanded(flex: 2, child: _buildUsersList()),
-              ],
-            ),
-          ),
+          // Left Side: Form
+          SizedBox(width: 380, child: _buildUserForm()),
+          const SizedBox(width: 32),
+          // Right Side: List
+          Expanded(child: _buildUsersList()),
         ],
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.people, size: 32, color: Color(0xFF1A237E)),
-        SizedBox(width: 12),
-        Text(
-          'إدارة المستخدمين',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1A237E),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildUserForm() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
         child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                _editingUserId == null ? 'إضافة مستخدم جديد' : 'تعديل المستخدم',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 24),
-
-              TextField(
-                controller: _firstNameController,
-                decoration: InputDecoration(
-                  labelText: 'الاسم الأول',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: Icon(Icons.person),
-                ),
-              ),
-              SizedBox(height: 16),
-
-              TextField(
-                controller: _lastNameController,
-                decoration: InputDecoration(
-                  labelText: 'الاسم الأخير',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: Icon(Icons.person_outline),
-                ),
-              ),
-              SizedBox(height: 16),
-
-              TextField(
-                controller: _emailController,
-                decoration: InputDecoration(
-                  labelText: 'البريد الإلكتروني',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: Icon(Icons.email),
-                ),
-              ),
-              SizedBox(height: 16),
-
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: _editingUserId == null
-                      ? 'كلمة المرور'
-                      : 'كلمة المرور (اتركها فارغة للإبقاء)',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: Icon(Icons.lock),
-                ),
-              ),
-              SizedBox(height: 16),
-
-              TextField(
-                controller: _phoneController,
-                decoration: InputDecoration(
-                  labelText: 'رقم الهاتف',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: Icon(Icons.phone),
-                ),
-              ),
-              SizedBox(height: 16),
-
-              TextField(
-                controller: _ageController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'العمر',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: Icon(Icons.cake),
-                ),
-              ),
-              SizedBox(height: 16),
-
-              DropdownButtonFormField<String>(
-                value: _selectedRole,
-                decoration: InputDecoration(
-                  labelText: 'الدور',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: Icon(Icons.work),
-                ),
-                items: [
-                  DropdownMenuItem(value: 'DRIVER', child: Text('سائق')),
-                  DropdownMenuItem(value: 'SENDER', child: Text('مرسل')),
-                  DropdownMenuItem(value: 'DISPATCHER', child: Text('موزع')),
-                  DropdownMenuItem(value: 'ADMIN', child: Text('مدير')),
-                ],
-                onChanged: (value) => setState(() => _selectedRole = value!),
-              ),
-              SizedBox(height: 16),
-
-              TextField(
-                controller: _facilityIdController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'معرف المنشأة (اختياري)',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: Icon(Icons.business),
-                ),
-              ),
-              SizedBox(height: 24),
-
               Row(
                 children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _isSubmitting ? null : _submitUser,
-                      icon: _isSubmitting
-                          ? SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                              ),
-                            )
-                          : Icon(
-                              _editingUserId == null ? Icons.add : Icons.save,
-                            ),
-                      label: Text(
-                        _editingUserId == null
-                            ? 'إضافة مستخدم'
-                            : 'حفظ التعديلات',
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFF1A237E),
-                        foregroundColor: Colors.white,
-                        minimumSize: Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.blueAccent.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _editingUserId == null ? Icons.person_add : Icons.edit,
+                      color: Colors.blueAccent,
+                      size: 20,
                     ),
                   ),
-                  if (_editingUserId != null) ...[
-                    SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: _cancelEdit,
-                      child: Text('إلغاء'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey,
-                        foregroundColor: Colors.white,
-                        minimumSize: Size(80, 50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
+                  const SizedBox(width: 16),
+                  Text(
+                    _editingUserId == null
+                        ? 'إضافة مستخدم'
+                        : 'تعديل بيانات المستخدم',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
                     ),
-                  ],
+                  ),
                 ],
               ),
+              const SizedBox(height: 32),
+              _buildTextField(
+                _firstNameController,
+                'الاسم الأول',
+                Icons.person_outline,
+              ),
+              const SizedBox(height: 20),
+              _buildTextField(
+                _lastNameController,
+                'الاسم الأخير',
+                Icons.person_outline,
+              ),
+              const SizedBox(height: 20),
+              _buildTextField(
+                _emailController,
+                'البريد الإلكتروني',
+                Icons.alternate_email,
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 20),
+              _buildTextField(
+                _passwordController,
+                _editingUserId == null
+                    ? 'كلمة المرور'
+                    : 'كلمة المرور الجديدة (اختياري)',
+                Icons.lock_outline,
+                obscureText: true,
+              ),
+              const SizedBox(height: 20),
+              _buildTextField(
+                _phoneController,
+                'رقم الهاتف',
+                Icons.phone_outlined,
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 20),
+              _buildTextField(
+                _ageController,
+                'العمر',
+                Icons.cake_outlined,
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 20),
+              _buildDropdownField(),
+              const SizedBox(height: 20),
+              _buildFacilityDropdownField(),
+              const SizedBox(height: 40),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _isSubmitting ? null : _submitUser,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          _editingUserId == null
+                              ? 'إنشاء حساب جديد'
+                              : 'حفظ التغييرات',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
+              if (_editingUserId != null) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: TextButton(
+                    onPressed: _cancelEdit,
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF64748B),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text('إلغاء التعديل'),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -291,140 +271,488 @@ class _AdminUsersState extends State<AdminUsers> {
     );
   }
 
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    bool obscureText = false,
+    TextInputType? keyboardType,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF334155),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
+          style: const TextStyle(fontSize: 15),
+          decoration: InputDecoration(
+            hintText: 'أدخل $label',
+            hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+            prefixIcon: Icon(icon, size: 20, color: const Color(0xFF94A3B8)),
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFF1F5F9)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: Colors.blueAccent,
+                width: 1.5,
+              ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDropdownField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'نوع الحساب (الدور)',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF334155),
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: _selectedRole,
+          onChanged: (value) => setState(() => _selectedRole = value!),
+          decoration: InputDecoration(
+            prefixIcon: const Icon(
+              Icons.shield_outlined,
+              size: 20,
+              color: Color(0xFF94A3B8),
+            ),
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFF1F5F9)),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+          ),
+          items: const [
+            DropdownMenuItem(value: 'DRIVER', child: Text('سائق')),
+            DropdownMenuItem(value: 'SENDER', child: Text('مرسل')),
+            DropdownMenuItem(value: 'DISPATCHER', child: Text('موزع')),
+            DropdownMenuItem(value: 'ADMIN', child: Text('مدير')),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFacilityDropdownField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'المنشأة التابع لها',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF334155),
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<int>(
+          value: _selectedFacilityId,
+          hint: const Text('اختر المنشأة'),
+          onChanged: (value) => setState(() => _selectedFacilityId = value),
+          decoration: InputDecoration(
+            prefixIcon: const Icon(
+              Icons.business_outlined,
+              size: 20,
+              color: Color(0xFF94A3B8),
+            ),
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFF1F5F9)),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+          ),
+          items: _facilities.map((f) {
+            return DropdownMenuItem<int>(
+              value: f['id'],
+              child: Text(f['name'] ?? 'منشأة غير معروفة'),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   Widget _buildUsersList() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Table Toolbar
+          Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Row(
               children: [
-                Text(
-                  'قائمة المستخدمين',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                const Text(
+                  'قائمة المستخدمين في النظام',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
                 ),
-                Spacer(),
-                Chip(
-                  label: Text('${_users.length} مستخدم'),
-                  backgroundColor: Color(0xFF1A237E),
-                  labelStyle: TextStyle(color: Colors.white),
+                const SizedBox(width: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.blueAccent.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${_users.length} مستخدم',
+                    style: const TextStyle(
+                      color: Colors.blueAccent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
-                SizedBox(width: 8),
-                IconButton(
-                  icon: Icon(Icons.refresh),
-                  onPressed: _isLoading ? null : _loadUsers,
-                  tooltip: 'تحديث',
+                const Spacer(),
+                Container(
+                  width: 300,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFF1F5F9)),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) => _filterUsers(),
+                    decoration: const InputDecoration(
+                      hintText: 'بحث عن مستخدم...',
+                      hintStyle: TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 14,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        size: 20,
+                        color: Color(0xFF94A3B8),
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                _buildToolbarButton(Icons.refresh, 'تحديث', _loadUsers),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          // Table Header
+          Container(
+            color: const Color(0xFFF8FAFC),
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+            child: Row(
+              children: const [
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'المستخدم',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'البريد الإلكتروني',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'رقم الهاتف',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'الدور / الصلاحية',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'خيارات',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
                 ),
               ],
             ),
-            SizedBox(height: 16),
+          ),
+          const Divider(height: 1),
+          // Table Body
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredUsers.isEmpty
+                ? _buildEmptyState()
+                : ListView.separated(
+                    itemCount: _filteredUsers.length,
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final user = _filteredUsers[index];
+                      return _buildUserRow(user);
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildUserRow(Map<String, dynamic> user) {
+    return InkWell(
+      onTap: () => _editUser(user),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+        child: Row(
+          children: [
             Expanded(
-              child: _isLoading
-                  ? Center(child: CircularProgressIndicator())
-                  : _users.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.people_outline,
-                            size: 64,
-                            color: Colors.grey,
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'لا يوجد مستخدمين',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    )
-                  : SingleChildScrollView(
-                      child: DataTable(
-                        columns: [
-                          DataColumn(
-                            label: Text(
-                              'الاسم',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'البريد',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'الهاتف',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'الدور',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'الإجراءات',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ],
-                        rows: _users.map((user) {
-                          return DataRow(
-                            cells: [
-                              DataCell(
-                                Text('${user['fName']} ${user['lName']}'),
-                              ),
-                              DataCell(Text(user['email'] ?? '')),
-                              DataCell(Text(user['phoneNumber'] ?? '')),
-                              DataCell(
-                                Chip(
-                                  label: Text(
-                                    _getRoleDisplayName(user['role']),
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  backgroundColor: _getRoleColor(user['role']),
-                                ),
-                              ),
-                              DataCell(
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.edit,
-                                        color: Colors.blue,
-                                      ),
-                                      onPressed: () => _editUser(user),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.delete,
-                                        color: Colors.red,
-                                      ),
-                                      onPressed: () => _deleteUser(user['id']),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          );
-                        }).toList(),
+              flex: 3,
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: _getRoleColor(
+                      user['role'],
+                    ).withOpacity(0.1),
+                    child: Text(
+                      (user['fName']?[0] ?? '').toUpperCase(),
+                      style: TextStyle(
+                        color: _getRoleColor(user['role']),
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
+                  ),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${user['fName']} ${user['lName']}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      Text(
+                        'ID: #${user['id']}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              flex: 3,
+              child: Text(
+                user['email'] ?? '',
+                style: const TextStyle(color: Color(0xFF475569)),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                user['phoneNumber'] ?? '',
+                style: const TextStyle(color: Color(0xFF475569)),
+              ),
+            ),
+            Expanded(flex: 2, child: _buildRoleBadge(user['role'])),
+            Expanded(
+              flex: 2,
+              child: Row(
+                children: [
+                  _buildIconButton(
+                    Icons.edit_outlined,
+                    Colors.blue,
+                    () => _editUser(user),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildIconButton(
+                    Icons.delete_outline,
+                    Colors.red,
+                    () => _deleteUser(user['id']),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildRoleBadge(String role) {
+    final color = _getRoleColor(role);
+    return UnconstrainedBox(
+      alignment: Alignment.centerRight,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          _getRoleDisplayName(role),
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToolbarButton(
+    IconData icon,
+    String tooltip,
+    VoidCallback onPressed,
+  ) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 20, color: const Color(0xFF64748B)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIconButton(IconData icon, Color color, VoidCallback onPressed) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, size: 18, color: color),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.people_outline, size: 80, color: Color(0xFFE2E8F0)),
+          const SizedBox(height: 24),
+          const Text(
+            'لا يوجد مستخدمين مسجلين حالياً',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'يمكنك إضافة مستخدم جديد من النموذج الجانبي',
+            style: TextStyle(color: Color(0xFF94A3B8)),
+          ),
+        ],
       ),
     );
   }
@@ -460,16 +788,15 @@ class _AdminUsersState extends State<AdminUsers> {
   }
 
   void _submitUser() async {
-    // Validation
     if (_firstNameController.text.isEmpty ||
         _lastNameController.text.isEmpty ||
         _emailController.text.isEmpty ||
         _phoneController.text.isEmpty ||
         _ageController.text.isEmpty) {
       MotionToast.error(
-        description: Text('يرجى ملء جميع الحقول المطلوبة'),
+        description: const Text('يرجى ملء جميع الحقول المطلوبة'),
         animationType: AnimationType.slideInFromTop,
-        toastDuration: const Duration(seconds: 1),
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
         displaySideBar: false,
       ).show(context);
@@ -478,9 +805,9 @@ class _AdminUsersState extends State<AdminUsers> {
 
     if (_editingUserId == null && _passwordController.text.isEmpty) {
       MotionToast.error(
-        description: Text('كلمة المرور مطلوبة للمستخدمين الجدد'),
+        description: const Text('كلمة المرور مطلوبة للمستخدمين الجدد'),
         animationType: AnimationType.slideInFromTop,
-        toastDuration: const Duration(seconds: 1),
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
         displaySideBar: false,
       ).show(context);
@@ -490,7 +817,7 @@ class _AdminUsersState extends State<AdminUsers> {
     setState(() => _isSubmitting = true);
 
     try {
-      final userData = {
+      final Map<String, dynamic> userData = {
         'fName': _firstNameController.text,
         'lName': _lastNameController.text,
         'email': _emailController.text,
@@ -499,57 +826,61 @@ class _AdminUsersState extends State<AdminUsers> {
         'role': _selectedRole,
       };
 
-      // Add password only if provided
       if (_passwordController.text.isNotEmpty) {
         userData['password'] = _passwordController.text;
       }
 
-      // Add facilityId if provided
-      if (_facilityIdController.text.isNotEmpty) {
-        userData['facilityId'] = int.parse(_facilityIdController.text);
+      if (_selectedFacilityId != null) {
+        userData['facilityId'] = _selectedFacilityId;
       }
 
       if (_editingUserId == null) {
-        // Create new user
         await UserService.createUser(userData);
         if (mounted) {
           MotionToast.success(
-            description: Text('تم إضافة المستخدم بنجاح'),
+            description: const Text('تم إضافة المستخدم بنجاح'),
             animationType: AnimationType.slideInFromTop,
-            toastDuration: const Duration(seconds: 1),
+            toastDuration: const Duration(seconds: 2),
             toastAlignment: Alignment.topCenter,
             displaySideBar: false,
           ).show(context);
         }
       } else {
-        // Update existing user
         await UserService.updateUser(_editingUserId!, userData);
         if (mounted) {
           MotionToast.success(
-            description: Text('تم تحديث المستخدم بنجاح'),
+            description: const Text('تم تحديث بيانات المستخدم بنجاح'),
             animationType: AnimationType.slideInFromTop,
-            toastDuration: const Duration(seconds: 1),
+            toastDuration: const Duration(seconds: 2),
             toastAlignment: Alignment.topCenter,
             displaySideBar: false,
           ).show(context);
         }
       }
 
-      _clearForm();
-      await _loadUsers();
+      _firstNameController.clear();
+      _lastNameController.clear();
+      _emailController.clear();
+      _phoneController.clear();
+      _ageController.clear();
+      _passwordController.clear();
+      setState(() {
+        _editingUserId = null;
+        _isSubmitting = false;
+        _selectedFacilityId = null;
+      });
+      _loadUsers();
     } catch (e) {
       if (mounted) {
+        setState(() => _isSubmitting = false);
+        final cleanError = e.toString().replaceAll('Exception: ', '');
         MotionToast.error(
-          description: Text('فشل حفظ المستخدم: ${e.toString()}'),
+          description: Text('فشل العملية: $cleanError'),
           animationType: AnimationType.slideInFromTop,
-          toastDuration: const Duration(seconds: 1),
+          toastDuration: const Duration(seconds: 2),
           toastAlignment: Alignment.topCenter,
           displaySideBar: false,
         ).show(context);
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
       }
     }
   }
@@ -563,39 +894,37 @@ class _AdminUsersState extends State<AdminUsers> {
       _phoneController.text = user['phoneNumber'] ?? '';
       _ageController.text = user['age']?.toString() ?? '';
       _selectedRole = user['role'] ?? 'DRIVER';
-      _facilityIdController.text = user['facilityId']?.toString() ?? '';
-      _passwordController.clear(); // Don't show existing password
+      _selectedFacilityId = user['facilityId'];
+      _passwordController.clear();
     });
   }
 
   void _cancelEdit() {
-    _clearForm();
-  }
-
-  void _clearForm() {
     setState(() {
       _editingUserId = null;
       _firstNameController.clear();
       _lastNameController.clear();
       _emailController.clear();
-      _passwordController.clear();
       _phoneController.clear();
       _ageController.clear();
-      _facilityIdController.clear();
+      _passwordController.clear();
       _selectedRole = 'DRIVER';
+      _selectedFacilityId = null;
     });
   }
 
-  void _deleteUser(int userId) {
+  void _deleteUser(int userId) async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('تأكيد الحذف'),
-        content: Text('هل أنت متأكد من حذف هذا المستخدم؟'),
+        title: const Text('حذف المستخدم'),
+        content: const Text(
+          'هل أنت متأكد من حذف هذا المستخدم؟ لا يمكن التراجع عن هذا الإجراء.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('إلغاء'),
+            child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -603,29 +932,42 @@ class _AdminUsersState extends State<AdminUsers> {
               try {
                 await UserService.deleteUser(userId);
                 if (mounted) {
+                  // Update local list immediately for instant UI response
+                  setState(() {
+                    _users.removeWhere((u) => u['id'] == userId);
+                    _filterUsers();
+                  });
+
                   MotionToast.success(
-                    description: Text('تم حذف المستخدم بنجاح'),
+                    description: const Text('تم حذف المستخدم بنجاح'),
                     animationType: AnimationType.slideInFromTop,
-                    toastDuration: const Duration(seconds: 1),
+                    toastDuration: const Duration(seconds: 2),
                     toastAlignment: Alignment.topCenter,
                     displaySideBar: false,
                   ).show(context);
                 }
-                await _loadUsers();
+                // Refresh from server silently to sync up
+                _loadUsers(silent: true);
               } catch (e) {
                 if (mounted) {
+                  final cleanError = e.toString().replaceAll('Exception: ', '');
                   MotionToast.error(
-                    description: Text('فشل حذف المستخدم: ${e.toString()}'),
+                    description: Text('فشل الحذف: $cleanError'),
                     animationType: AnimationType.slideInFromTop,
-                    toastDuration: const Duration(seconds: 1),
+                    toastDuration: const Duration(seconds: 2),
                     toastAlignment: Alignment.topCenter,
                     displaySideBar: false,
                   ).show(context);
+                  // Refresh list in case of partial failure
+                  _loadUsers(silent: true);
                 }
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text('حذف'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('حذف'),
           ),
         ],
       ),

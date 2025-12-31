@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:path_aid/services/transport_request_service.dart';
 import 'package:path_aid/services/facility_service.dart';
+import 'package:path_aid/screen/desktop/clinic_dashboard.dart';
 
 class SenderHome extends StatefulWidget {
   const SenderHome({super.key});
@@ -81,131 +82,156 @@ class _SenderHomeState extends State<SenderHome> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: Color(0xFFf8fafc),
-        body: Column(
-          children: [
-            Container(
-              padding: EdgeInsets.only(
-                top: MediaQuery.of(context).padding.top + 16,
-                left: 16,
-                right: 16,
-                bottom: 16,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
-                border: Border(bottom: BorderSide(color: Colors.grey[100]!)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _selectedIndex == 0
-                          ? 'الطلبات قيد التنفيذ'
-                          : 'سجل الطلبات المكتملة',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0f172a),
-                      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth > 1000) {
+            return ClinicDashboardDesktop(
+              requests: requests,
+              facilityNames: facilityNames,
+              onRefresh: _loadData,
+              onCreateRequest: (args) async {
+                await Navigator.pushNamed(
+                  context,
+                  '/doctor/create',
+                  arguments: args,
+                );
+                _loadData();
+              },
+              onViewDetails: _showRequestDetails,
+            );
+          }
+          return Scaffold(
+            backgroundColor: Color(0xFFf8fafc),
+            body: Column(
+              children: [
+                Container(
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).padding.top + 16,
+                    left: 16,
+                    right: 16,
+                    bottom: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.9),
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey[100]!),
                     ),
                   ),
-                  if (_selectedIndex == 0)
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Color(0xFF2563eb).withOpacity(0.1),
-                        shape: BoxShape.circle,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _selectedIndex == 0
+                              ? 'الطلبات قيد التنفيذ'
+                              : 'سجل الطلبات المكتملة',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0f172a),
+                          ),
+                        ),
                       ),
-                      child: IconButton(
-                        icon: Icon(Icons.add, color: Color(0xFF2563eb)),
-                        onPressed: () async {
-                          await Navigator.pushNamed(context, '/doctor/create');
-                          _loadData();
-                        },
-                        padding: EdgeInsets.zero,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: _isLoading
-                  ? Center(child: CircularProgressIndicator())
-                  : RefreshIndicator(
-                      onRefresh: _loadData,
-                      child: filteredRequests.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    _selectedIndex == 0
-                                        ? Icons.pending_actions
-                                        : Icons.history,
-                                    size: 64,
-                                    color: Colors.grey[300],
+                      if (_selectedIndex == 0)
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Color(0xFF2563eb).withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            icon: Icon(Icons.add, color: Color(0xFF2563eb)),
+                            onPressed: () async {
+                              await Navigator.pushNamed(
+                                context,
+                                '/doctor/create',
+                              );
+                              _loadData();
+                            },
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: _isLoading
+                      ? Center(child: CircularProgressIndicator())
+                      : RefreshIndicator(
+                          onRefresh: _loadData,
+                          child: filteredRequests.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        _selectedIndex == 0
+                                            ? Icons.pending_actions
+                                            : Icons.history,
+                                        size: 64,
+                                        color: Colors.grey[300],
+                                      ),
+                                      SizedBox(height: 16),
+                                      Text(
+                                        _selectedIndex == 0
+                                            ? 'لا توجد طلبات نشطة حالياً'
+                                            : 'لا يوجد سجل للطلبات المكتملة',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  SizedBox(height: 16),
-                                  Text(
-                                    _selectedIndex == 0
-                                        ? 'لا توجد طلبات نشطة حالياً'
-                                        : 'لا يوجد سجل للطلبات المكتملة',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.grey,
-                                    ),
+                                )
+                              : ListView.builder(
+                                  padding: EdgeInsets.only(
+                                    left: 16,
+                                    right: 16,
+                                    top: 16,
+                                    bottom: 16,
                                   ),
-                                ],
-                              ),
-                            )
-                          : ListView.builder(
-                              padding: EdgeInsets.only(
-                                left: 16,
-                                right: 16,
-                                top: 16,
-                                bottom: 16,
-                              ),
-                              itemCount: filteredRequests.length,
-                              itemBuilder: (context, index) {
-                                final request = filteredRequests[index];
-                                return ModernRequestCard(
-                                  request: request,
-                                  getFacilityName: _getFacilityName,
-                                  onTap: () => _showRequestDetails(request),
-                                  onCancel: () => _cancelRequest(request),
-                                );
-                              },
-                            ),
-                    ),
+                                  itemCount: filteredRequests.length,
+                                  itemBuilder: (context, index) {
+                                    final request = filteredRequests[index];
+                                    return ModernRequestCard(
+                                      request: request,
+                                      getFacilityName: _getFacilityName,
+                                      onTap: () => _showRequestDetails(request),
+                                      onCancel: () => _cancelRequest(request),
+                                    );
+                                  },
+                                ),
+                        ),
+                ),
+              ],
             ),
-          ],
-        ),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: (index) {
-            setState(() {
-              _selectedIndex = index;
-            });
-          },
-          selectedItemColor: Color(0xFF2563eb),
-          unselectedItemColor: Colors.grey,
-          backgroundColor: Colors.white,
-          type: BottomNavigationBarType.fixed,
-          items: [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.local_shipping_outlined),
-              activeIcon: Icon(Icons.local_shipping),
-              label: 'قيد التنفيذ',
+            bottomNavigationBar: BottomNavigationBar(
+              currentIndex: _selectedIndex,
+              onTap: (index) {
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+              selectedItemColor: Color(0xFF2563eb),
+              unselectedItemColor: Colors.grey,
+              backgroundColor: Colors.white,
+              type: BottomNavigationBarType.fixed,
+              items: [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.local_shipping_outlined),
+                  activeIcon: Icon(Icons.local_shipping),
+                  label: 'قيد التنفيذ',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.assignment_turned_in_outlined),
+                  activeIcon: Icon(Icons.assignment_turned_in),
+                  label: 'المكتملة',
+                ),
+              ],
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.assignment_turned_in_outlined),
-              activeIcon: Icon(Icons.assignment_turned_in),
-              label: 'المكتملة',
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -288,7 +314,7 @@ class _SenderHomeState extends State<SenderHome> {
     if (confirm == true) {
       try {
         await TransportRequestService.deleteTransportRequest(request['id']);
-        _loadData(); 
+        _loadData();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

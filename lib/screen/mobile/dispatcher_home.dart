@@ -381,37 +381,6 @@ class _DispatcherHomeState extends State<DispatcherHome> {
     );
   }
 
-  Widget _buildFilterChip(String label, bool isSelected) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF135bec) : Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: isSelected ? null : Border.all(color: Colors.grey[200]!),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFF135bec).withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? Colors.white : const Color(0xFF475569),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildRequestCard(Map<String, dynamic> request) {
     Color statusColor;
     String statusText;
@@ -815,7 +784,7 @@ class _DispatcherHomeState extends State<DispatcherHome> {
       MotionToast.success(
         description: const Text("تم إضافة المركبة بنجاح"),
         animationType: AnimationType.slideInFromTop,
-        toastDuration: const Duration(seconds: 1),
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
         displaySideBar: false,
       ).show(context);
@@ -824,7 +793,7 @@ class _DispatcherHomeState extends State<DispatcherHome> {
       MotionToast.error(
         description: Text(e.toString()),
         animationType: AnimationType.slideInFromTop,
-        toastDuration: const Duration(seconds: 1),
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
         displaySideBar: false,
       ).show(context);
@@ -839,7 +808,7 @@ class _DispatcherHomeState extends State<DispatcherHome> {
       MotionToast.error(
         description: Text(e.toString()),
         animationType: AnimationType.slideInFromTop,
-        toastDuration: const Duration(seconds: 1),
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
         displaySideBar: false,
       ).show(context);

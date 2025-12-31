@@ -113,45 +113,40 @@ class _CreateRequestState extends State<CreateRequest> {
         _selectedDate == null ||
         _selectedTime == null) {
       MotionToast.error(
-        animationDuration: const Duration(
-          seconds: 2,
-        ),
-        toastDuration: const Duration(seconds: 1),
         displaySideBar: false,
-        title: Text("خطأ", style: TextStyle(color: Colors.white)),
-        description: Text(
+        title: const Text("خطأ", style: TextStyle(color: Colors.white)),
+        description: const Text(
           "يرجى ملء جميع الحقول الإلزامية بما في ذلك التاريخ والوقت",
           style: TextStyle(color: Colors.white),
         ),
         animationType: AnimationType.slideInFromTop,
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
       ).show(context);
       return;
     } else if (_fromFacilityController.text == _toFacilityController.text) {
       MotionToast.error(
-        animationDuration: const Duration(seconds: 2),
-        toastDuration: const Duration(seconds: 1),
         displaySideBar: false,
-        title: Text("خطأ", style: TextStyle(color: Colors.white)),
-        description: Text(
+        title: const Text("خطأ", style: TextStyle(color: Colors.white)),
+        description: const Text(
           "لا يمكن انشاء طلب نقل الى نفس المسشفى",
           style: TextStyle(color: Colors.white),
         ),
         animationType: AnimationType.slideInFromTop,
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
       ).show(context);
       return;
     } else if (int.parse(_patientAgeController.text) >= 100) {
       MotionToast.error(
-        animationDuration: const Duration(seconds: 2),
-        toastDuration: const Duration(seconds: 1),
         displaySideBar: false,
-        title: Text("خطأ", style: TextStyle(color: Colors.white)),
-        description: Text(
+        title: const Text("خطأ", style: TextStyle(color: Colors.white)),
+        description: const Text(
           "يرجى إدخال عمر صحي",
           style: TextStyle(color: Colors.white),
         ),
         animationType: AnimationType.slideInFromTop,
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
       ).show(context);
       return;
@@ -198,17 +193,16 @@ class _CreateRequestState extends State<CreateRequest> {
       if (!mounted) return;
 
       MotionToast.success(
-        animationDuration: const Duration(seconds: 2),
-        toastDuration: const Duration(seconds: 1),
         displaySideBar: false,
-        title: Text("نجاح", style: TextStyle(color: Colors.white)),
+        title: const Text("نجاح", style: TextStyle(color: Colors.white)),
         description: Text(
           widget.requestToEdit != null
               ? "تم تعديل الطلب بنجاح"
               : "تم إنشاء الطلب بنجاح",
-          style: TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.white),
         ),
         animationType: AnimationType.slideInFromTop,
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
       ).show(context);
 
@@ -220,15 +214,14 @@ class _CreateRequestState extends State<CreateRequest> {
     } catch (e) {
       if (!mounted) return;
       MotionToast.error(
-        animationDuration: const Duration(seconds: 2),
-        toastDuration: const Duration(seconds: 1),
         displaySideBar: false,
-        title: Text("فشل", style: TextStyle(color: Colors.white)),
+        title: const Text("فشل", style: TextStyle(color: Colors.white)),
         description: Text(
           e.toString().replaceAll('Exception: ', ''),
-          style: TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.white),
         ),
         animationType: AnimationType.slideInFromTop,
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
       ).show(context);
     } finally {
@@ -255,15 +248,14 @@ class _CreateRequestState extends State<CreateRequest> {
     });
 
     MotionToast.info(
-      animationDuration: const Duration(seconds: 2),
-      toastDuration: const Duration(seconds: 1),
       displaySideBar: false,
-      title: Text("تنظيف الحقول", style: TextStyle(color: Colors.white)),
-      description: Text(
+      title: const Text("تنظيف الحقول", style: TextStyle(color: Colors.white)),
+      description: const Text(
         "تم تنظيف جميع الحقول",
         style: TextStyle(color: Colors.white),
       ),
       animationType: AnimationType.slideInFromTop,
+      toastDuration: const Duration(seconds: 2),
       toastAlignment: Alignment.topCenter,
     ).show(context);
   }

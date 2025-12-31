@@ -551,14 +551,11 @@ class _PendingRequestsState extends State<PendingRequests> {
     });
 
     MotionToast.success(
-      opacity: 0.9,
-      width: MediaQuery.of(context).size.width,
       displaySideBar: false,
-      title: Text("نجاح"),
-      description: Text('تم رفض الطلب بنجاح'),
+      title: const Text("نجاح"),
+      description: const Text('تم رفض الطلب بنجاح'),
       animationType: AnimationType.slideInFromTop,
-      enableAnimation: true,
-      toastDuration: const Duration(seconds: 1),
+      toastDuration: const Duration(seconds: 2),
       toastAlignment: Alignment.topCenter,
     ).show(context);
   }
@@ -957,6 +954,9 @@ class _PendingRequestsState extends State<PendingRequests> {
         description: Text(
           'تم تعيين السائق ${driver['fName']} والمركبة ${vehicle['code']} للطلب بنجاح',
         ),
+        animationType: AnimationType.slideInFromTop,
+        toastDuration: const Duration(seconds: 2),
+        toastAlignment: Alignment.topCenter,
         displaySideBar: false,
       ).show(context);
     } catch (e) {
@@ -964,44 +964,11 @@ class _PendingRequestsState extends State<PendingRequests> {
 
       MotionToast.error(
         description: Text(e.toString()),
+        animationType: AnimationType.slideInFromTop,
+        toastDuration: const Duration(seconds: 2),
+        toastAlignment: Alignment.topCenter,
         displaySideBar: false,
       ).show(context);
-    }
-  }
-
-  int _parseId(dynamic id) {
-    if (id == null) return 0;
-    if (id is int) return id;
-    if (id is String) return int.tryParse(id) ?? 0;
-    if (id is double) return id.toInt();
-    return 0;
-  }
-
-  Future<void> _updateRequestStatus(dynamic requestId, String status) async {
-    try {
-      print('🔄 محاولة تحديث حالة الطلب $requestId إلى $status');
-
-      await TransportRequestService.updateTransportRequestStatus(
-        requestId: requestId,
-        status: status,
-      );
-
-      print('✅ تم تحديث حالة الطلب بنجاح');
-    } catch (e) {
-      print('❌ خطأ في تحديث الحالة: $e');
-
-      if (status == 'ASSIGNED') {
-        try {
-          print('🔄 محاولة تحديث إلى IN_PROGRESS بدلاً من ASSIGNED');
-          await TransportRequestService.updateTransportRequestStatus(
-            requestId: requestId,
-            status: 'IN_PROGRESS',
-          );
-          print('✅ تم تحديث الحالة إلى IN_PROGRESS');
-        } catch (e2) {
-          print('❌ فشل تحديث الحالة البديلة: $e2');
-        }
-      }
     }
   }
 
@@ -1010,14 +977,14 @@ class _PendingRequestsState extends State<PendingRequests> {
 
     MotionToast.success(
       displaySideBar: false,
-      width: MediaQuery.of(context).size.width,
-      description: Text(
+      description: const Text(
         "تم تحديث قائمه الطلبات",
         style: TextStyle(color: Colors.white),
       ),
-      title: Text("نجاح", style: TextStyle(color: Colors.white)),
-      animationType: AnimationType.slideInFromLeft,
-      toastAlignment: Alignment.topLeft,
+      title: const Text("نجاح", style: TextStyle(color: Colors.white)),
+      animationType: AnimationType.slideInFromTop,
+      toastDuration: const Duration(seconds: 2),
+      toastAlignment: Alignment.topCenter,
     ).show(context);
   }
 

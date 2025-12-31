@@ -71,34 +71,28 @@ class _DeleteRequestState extends State<DeleteRequest> {
       if (!mounted) return;
 
       MotionToast.success(
-        width: MediaQuery.of(context).size.width,
-        animationDuration: const Duration(seconds: 2),
-        toastDuration: const Duration(seconds: 1),
-        displaySideBar: false,
-        displayBorder: false,
-        title: Text("نجاح", style: TextStyle(color: Colors.white)),
-        description: Text(
+        title: const Text("نجاح", style: TextStyle(color: Colors.white)),
+        description: const Text(
           'تم حذف الطلب بنجاح',
           style: TextStyle(color: Colors.white),
         ),
         animationType: AnimationType.slideInFromTop,
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
+        displaySideBar: false,
       ).show(context);
     } catch (e) {
       if (!mounted) return;
       MotionToast.error(
-        width: MediaQuery.of(context).size.width,
-        animationDuration: const Duration(seconds: 2),
-        toastDuration: const Duration(seconds: 1),
-        displaySideBar: false,
-        displayBorder: false,
-        title: Text("فشل", style: TextStyle(color: Colors.white)),
+        title: const Text("فشل", style: TextStyle(color: Colors.white)),
         description: Text(
           e.toString().replaceAll('Exception: ', ''),
-          style: TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.white),
         ),
         animationType: AnimationType.slideInFromTop,
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
+        displaySideBar: false,
       ).show(context);
     }
   }

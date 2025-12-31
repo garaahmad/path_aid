@@ -100,13 +100,13 @@ class _LogindesktopState extends State<Logindesktop> {
                             Navigator.pushNamed(context, '/admin');
                           } else {
                             MotionToast.error(
-                              title: Text("خطأ في تسجيل الدخول"),
-                              description: Text(
+                              title: const Text("خطأ في تسجيل الدخول"),
+                              description: const Text(
                                 'اسم المستخدم أو كلمة المرور غير صحيحة',
                                 style: TextStyle(color: Colors.white),
                               ),
                               animationType: AnimationType.slideInFromTop,
-                              toastDuration: const Duration(seconds: 1),
+                              toastDuration: const Duration(seconds: 2),
                               toastAlignment: Alignment.topCenter,
                               displaySideBar: false,
                             ).show(context);

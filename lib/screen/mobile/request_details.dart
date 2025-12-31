@@ -25,17 +25,22 @@ class _RequestDetailsState extends State<RequestDetails> {
     final priority = request['priority'] ?? 'ROUTINE';
     final from = request['fromFacilityName'] ?? 'Unknown';
     final to = request['toFacilityName'] ?? 'Unknown';
-    final requster = request['requestedBy'] ?? 'Unknown';
-    final date = request['scheduledTransferTime'] ?? '24 أكتوبر 2023';
+    final date = request['transportTime'] != null
+        ? request['transportTime'].toString().split('T')[0]
+        : (request['scheduledTransferTime'] ?? 'غير محدد');
+    final notes = request['notes'] ?? 'لا توجد ملاحظات إضافية من المرسل';
 
-    Color priorityColor = Colors.blue;
-    String priorityText = 'Routine';
-    if (priority == 'URGENT') {
+    Color priorityColor = Colors.green;
+    String priorityText = 'منخفض';
+    if (priority == 'MEDIUM') {
       priorityColor = Colors.orange;
-      priorityText = 'Urgent';
-    } else if (priority == 'EMERGENCY') {
+      priorityText = 'متوسط';
+    } else if (priority == 'HIGH') {
       priorityColor = Colors.red;
-      priorityText = 'Emergency';
+      priorityText = 'عالي';
+    } else if (priority == 'CRITICAL') {
+      priorityColor = Colors.purple;
+      priorityText = 'حرج';
     }
 
     return Scaffold(
@@ -225,39 +230,6 @@ class _RequestDetailsState extends State<RequestDetails> {
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFecfdf5),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: const Color(0xFFd1fae5),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.check_circle,
-                                          color: Color(0xFF047857),
-                                          size: 14,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        const Text(
-                                          'حالة مستقرة',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF047857),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
                                 ],
                               ),
                             ),
@@ -270,28 +242,6 @@ class _RequestDetailsState extends State<RequestDetails> {
                         const SizedBox(height: 20),
 
                         Divider(color: Colors.grey[100]),
-                        const SizedBox(height: 16),
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 12,
-                          children: [
-                            _buildRequirementChip(
-                              Icons.bed,
-                              'نقالة',
-                              const Color(0xFF135bec),
-                            ),
-                            _buildRequirementChip(
-                              Icons.air,
-                              'أكسجين',
-                              Colors.blue,
-                            ),
-                            _buildRequirementChip(
-                              Icons.masks,
-                              'عزل وقائي',
-                              Colors.orange,
-                            ),
-                          ],
-                        ),
                       ],
                     ),
                   ),
@@ -328,19 +278,41 @@ class _RequestDetailsState extends State<RequestDetails> {
                         priorityColor,
                         isHighlight: true,
                       ),
-                      _buildDetailBox(
-                        Icons.category,
-                        'نوع النقل',
-                        'نقل داخلي',
-                        Colors.grey,
-                      ),
-                      _buildDetailBox(
-                        Icons.person,
-                        'طالب الخدمة',
-                        requster,
-                        Colors.grey,
-                      ),
                     ],
+                  ),
+
+                  const SizedBox(height: 24),
+                  const Text(
+                    'ملاحظات المرسل (الطبيب)',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1e293b),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          offset: const Offset(0, 4),
+                          blurRadius: 12,
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      notes,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: Color(0xFF334155),
+                        height: 1.6,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -517,32 +489,6 @@ class _RequestDetailsState extends State<RequestDetails> {
     );
   }
 
-  Widget _buildRequirementChip(IconData icon, String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: color),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF334155),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildDetailBox(
     IconData icon,
     String label,
@@ -673,6 +619,9 @@ class _RequestDetailsState extends State<RequestDetails> {
         MotionToast.success(
           title: const Text("تم الحذف"),
           description: const Text("تم رفض وحذف الطلب بنجاح"),
+          animationType: AnimationType.slideInFromTop,
+          toastDuration: const Duration(seconds: 2),
+          toastAlignment: Alignment.topCenter,
           displaySideBar: false,
         ).show(context);
         Navigator.pop(context, true); // Return true to indicate change
@@ -683,6 +632,9 @@ class _RequestDetailsState extends State<RequestDetails> {
         MotionToast.error(
           title: const Text("خطأ"),
           description: Text("فشل حذف الطلب: $e"),
+          animationType: AnimationType.slideInFromTop,
+          toastDuration: const Duration(seconds: 2),
+          toastAlignment: Alignment.topCenter,
           displaySideBar: false,
         ).show(context);
       }
@@ -873,7 +825,7 @@ class _RequestDetailsState extends State<RequestDetails> {
       MotionToast.success(
         description: const Text("تم التخصيص بنجاح"),
         animationType: AnimationType.slideInFromTop,
-        toastDuration: const Duration(seconds: 1),
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
         displaySideBar: false,
       ).show(context);
@@ -882,7 +834,7 @@ class _RequestDetailsState extends State<RequestDetails> {
       MotionToast.error(
         description: Text(e.toString()),
         animationType: AnimationType.slideInFromTop,
-        toastDuration: const Duration(seconds: 1),
+        toastDuration: const Duration(seconds: 2),
         toastAlignment: Alignment.topCenter,
         displaySideBar: false,
       ).show(context);

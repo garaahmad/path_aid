@@ -11,18 +11,11 @@ class FacilityService {
   };
 
   static final Map<String, List<String>> _areaCityMap = {
-    'NORTH': ['JABALIA', 'BEIT_LAHIA', 'BEIT_HANOUN'], 
-    'GAZA': ['WEST_GAZA', 'CENTRAL_GAZA', 'EAST_GAZA', 'GAZA'], 
-    'CENTER': [
-      'NUSEIRAT',
-      'MAGHAZI',
-      'BUREIJ',
-      'DEIR_AL_BALAH',
-      'ZAWAIDA',
-    ], 
+    'NORTH': ['JABALIA', 'BEIT_LAHIA', 'BEIT_HANOUN'],
+    'GAZA': ['WEST_GAZA', 'CENTRAL_GAZA', 'EAST_GAZA', 'GAZA'],
+    'CENTER': ['NUSEIRAT', 'MAGHAZI', 'BUREIJ', 'DEIR_AL_BALAH', 'ZAWAIDA'],
     'SOUTH': ['KHAN_YOUNIS', 'RAFAH'],
   };
-
 
   static Future<List<Map<String, dynamic>>> getAllFacilities() async {
     final prefs = await SharedPreferences.getInstance();
@@ -68,15 +61,22 @@ class FacilityService {
 
     try {
       final response = await http.post(url, headers: _headers, body: body);
-      if (response.statusCode == 201) {
+      if (response.statusCode == 201 || response.statusCode == 200) {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.remove(_cacheKey); 
+        await prefs.remove(_cacheKey);
       } else {
-        final error = json.decode(response.body);
-        throw Exception(error['info'] ?? 'فشل إنشاء المنشأة');
+        if (response.body.isNotEmpty) {
+          try {
+            final error = json.decode(response.body);
+            throw Exception(error['info'] ?? 'فشل إنشاء المنشأة');
+          } catch (_) {
+            throw Exception('فشل إنشاء المنشأة: كود ${response.statusCode}');
+          }
+        }
+        throw Exception('فشل إنشاء المنشأة: كود ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('فشل إنشاء المنشأة: $e');
+      rethrow;
     }
   }
 
@@ -97,15 +97,24 @@ class FacilityService {
 
     try {
       final response = await http.put(url, headers: _headers, body: body);
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 ||
+          response.statusCode == 204 ||
+          response.statusCode == 201) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove(_cacheKey);
       } else {
-        final error = json.decode(response.body);
-        throw Exception(error['info'] ?? 'فشل تحديث المنشأة');
+        if (response.body.isNotEmpty) {
+          try {
+            final error = json.decode(response.body);
+            throw Exception(error['info'] ?? 'فشل تحديث المنشأة');
+          } catch (_) {
+            throw Exception('فشل تحديث المنشأة: كود ${response.statusCode}');
+          }
+        }
+        throw Exception('فشل تحديث المنشأة: كود ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('فشل تحديث المنشأة: $e');
+      rethrow;
     }
   }
 
@@ -117,18 +126,20 @@ class FacilityService {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove(_cacheKey);
       } else {
-        dynamic error;
-        try {
-          error = json.decode(response.body);
-        } catch (_) {
-          error = {'info': 'حدث خطأ غير معروف'};
+        if (response.body.isNotEmpty) {
+          try {
+            final error = json.decode(response.body);
+            throw Exception(
+              error['info'] ?? 'فشل حذف المنشأة: ${response.statusCode}',
+            );
+          } catch (_) {
+            throw Exception('فشل حذف المنشأة: كود ${response.statusCode}');
+          }
         }
-        throw Exception(
-          error['info'] ?? 'فشل حذف المنشأة: ${response.statusCode}',
-        );
+        throw Exception('فشل حذف المنشأة: كود ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('فشل حذف المنشأة: $e');
+      rethrow;
     }
   }
 
@@ -184,6 +195,21 @@ class FacilityService {
         return 'غزة';
       default:
         return city ?? 'غير محدد';
+    }
+  }
+
+  static String getAreaText(String? area) {
+    switch (area) {
+      case 'NORTH':
+        return 'الشمال';
+      case 'GAZA':
+        return 'غزة';
+      case 'CENTER':
+        return 'الوسطى';
+      case 'SOUTH':
+        return 'الجنوب';
+      default:
+        return area ?? 'غير محدد';
     }
   }
 }

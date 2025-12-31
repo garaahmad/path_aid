@@ -38,9 +38,9 @@ class _AssignVehicleState extends State<AssignVehicle> {
         MotionToast.error(
           description: Text('فشل تحميل الطلبات: $e'),
           animationType: AnimationType.slideInFromTop,
-          toastDuration: const Duration(seconds: 1),
-          displaySideBar: false,
+          toastDuration: const Duration(seconds: 2),
           toastAlignment: Alignment.topCenter,
+          displaySideBar: false,
         ).show(context);
       }
     }
@@ -243,9 +243,9 @@ class _AssignmentDialogState extends State<AssignmentDialog> {
         UserService.getAvailableDriversForRequest(reqId),
       ]);
 
-      final availableVehicles = results[0] as List<Map<String, dynamic>>;
-      final allVehicles = results[1] as List<Map<String, dynamic>>;
-      final drivers = results[2] as List<Map<String, dynamic>>;
+      final availableVehicles = results[0];
+      final allVehicles = results[1];
+      final drivers = results[2];
 
       final allVehiclesMap = {for (var v in allVehicles) v['id'].toString(): v};
       final enrichedVehicles = availableVehicles.map((av) {
@@ -257,7 +257,7 @@ class _AssignmentDialogState extends State<AssignmentDialog> {
               (v) => v['code'] == av['code'],
               orElse: () => {},
             );
-            if (fullDetails!.isEmpty) fullDetails = null;
+            if (fullDetails.isEmpty) fullDetails = null;
           } catch (_) {}
         }
 
@@ -277,7 +277,7 @@ class _AssignmentDialogState extends State<AssignmentDialog> {
         MotionToast.error(
           description: Text('فشل تحميل الخيارات: $e'),
           animationType: AnimationType.slideInFromTop,
-          toastDuration: const Duration(seconds: 1),
+          toastDuration: const Duration(seconds: 2),
           toastAlignment: Alignment.topCenter,
           displaySideBar: false,
         ).show(context);
@@ -302,7 +302,7 @@ class _AssignmentDialogState extends State<AssignmentDialog> {
         MotionToast.success(
           description: const Text('تم التعيين بنجاح'),
           animationType: AnimationType.slideInFromTop,
-          toastDuration: const Duration(seconds: 1),
+          toastDuration: const Duration(seconds: 2),
           toastAlignment: Alignment.topCenter,
           displaySideBar: false,
         ).show(context);
@@ -313,7 +313,7 @@ class _AssignmentDialogState extends State<AssignmentDialog> {
         MotionToast.error(
           description: Text('فشل التعيين: $e'),
           animationType: AnimationType.slideInFromTop,
-          toastDuration: const Duration(seconds: 1),
+          toastDuration: const Duration(seconds: 2),
           toastAlignment: Alignment.topCenter,
           displaySideBar: false,
         ).show(context);
